@@ -10,12 +10,12 @@ Blog Post URL is : TBD
 
 2. Check you are using CDK v2 : `npm install -g aws-cdk@next`
 
-3. Git clone `git clone xxx`
+3. Git clone `git clone https://github.com/sebsto/cdkv2-vpc-example.git`
 
 After a git clone, follow these steps 
 
 ```bash
-cd specific-routing-demo
+cd cdkv2-vpc-example
 
 npm install 
 cdk bootstrap # the firts time only
