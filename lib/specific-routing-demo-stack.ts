@@ -1,4 +1,4 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
+import { Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
 import { aws_ec2 as ec2 } from 'aws-cdk-lib';
@@ -23,7 +23,7 @@ export class SpecificRoutingDemoStack extends Stack {
         name: 'application',
         cidrMask: 24
       }, {
-        subnetType: ec2.SubnetType.ISOLATED,
+        subnetType: ec2.SubnetType.ISOLATED, 
         name: 'appliance',
         cidrMask: 24
       }]
@@ -38,12 +38,12 @@ export class SpecificRoutingDemoStack extends Stack {
     //
     // Create a security group allowing connection on TCP 80 from the bastion 
     //
-    const demoSecurityGroup = new ec2.SecurityGroup(this, 'DemoSecurityGroup', {
+    const applicationSecurityGroup = new ec2.SecurityGroup(this, 'ApplicationSecurityGroup', {
       vpc,
       description: 'Allow access to ec2 instances',
       allowAllOutbound: true   // Can be set to false
     });
-    demoSecurityGroup.addIngressRule(
+    applicationSecurityGroup.addIngressRule(
       bastionHost.instance.connections.securityGroups[0],
       ec2.Port.tcp(80),
       'Allows HTTP connection from bastion security group');
@@ -68,11 +68,11 @@ export class SpecificRoutingDemoStack extends Stack {
     //
     // define a user data script to install & launch a web server
     //
-    const userData = ec2.UserData.forLinux();
-    userData.addCommands('amazon-linux-extras install nginx1 -y',
+    const createWebServerUserdata = ec2.UserData.forLinux();
+    createWebServerUserdata.addCommands('amazon-linux-extras install nginx1 -y',
       'systemctl enable nginx.service',
       'systemctl start nginx.service');
-    userData.addCommands(
+      createWebServerUserdata.addCommands(
       `aws s3 cp ${asset.s3ObjectUrl} .`,
       `unzip *.zip`,
       `/bin/mv /usr/share/nginx/html/index.html /usr/share/nginx/html/index.html.orig`,
@@ -85,12 +85,21 @@ export class SpecificRoutingDemoStack extends Stack {
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.NANO),
       machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2 }),
       vpc: vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE },
+      // vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE },
+      vpcSubnets: { subnetGroupName: 'application'},
       instanceName: 'application',
-      userData: userData,
-      securityGroup: demoSecurityGroup,
+      userData: createWebServerUserdata,
+      securityGroup: applicationSecurityGroup,
       role: s3Role
     });
+
+    //
+    // define a user data script to enable routing at kernel level
+    //
+    const enableRoutingUserdata = ec2.UserData.forLinux();
+    enableRoutingUserdata.addCommands(
+      'sysctl -w net.ipv4.ip_forward=1',
+      'sysctl -w net.ipv6.conf.all.forwarding=1');
 
     //
     // create the appliance instance in the isolated subnet 
@@ -99,22 +108,27 @@ export class SpecificRoutingDemoStack extends Stack {
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.NANO),
       machineImage: new ec2.AmazonLinuxImage({ generation: ec2.AmazonLinuxGeneration.AMAZON_LINUX_2 }),
       vpc: vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.ISOLATED },
+//      vpcSubnets: { subnetType: ec2.SubnetType.ISOLATED },
+      vpcSubnets: { subnetGroupName: 'appliance'},
       instanceName: 'appliance',
-      sourceDestCheck: true
+      userData: enableRoutingUserdata,
+      sourceDestCheck: false
     });
 
-    //TEMP for debugging user data
-    // const policy = {
-    //   Action: [
-    //     "ssmmessages:*",
-    //     "ssm:UpdateInstanceInformation",
-    //     "ec2messages:*"
-    //   ],
-    //   Resource: "*",
-    //   Effect: "Allow"
-    // }
+    // Allows to connect to the appliance instance for CLI access (requires private or public network) 
+    const policy = {
+      Action: [
+        "ssmmessages:*",
+        "ssm:UpdateInstanceInformation",
+        "ec2messages:*"
+      ],
+      Resource: "*",
+      Effect: "Allow"
+    }
 
-    // instance.addToRolePolicy(iam.PolicyStatement.fromJson(policy));
+    applianceInstance.addToRolePolicy(iam.PolicyStatement.fromJson(policy));
+
+    new CfnOutput(this, 'VPC-ID', { value: vpc.vpcId });
+
   }
 }

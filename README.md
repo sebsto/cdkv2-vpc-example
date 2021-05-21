@@ -6,7 +6,7 @@ Blog Post URL is : TBD
 
 ## How to install ?
 
-1. Check or adjust AWS region to deploy. Region is define here `bin/specific-routing-demo.ts:9`
+1. Check or adjust AWS region to deploy. Region [is defined here](https://github.com/sebsto/cdkv2-vpc-example/blob/main/bin/specific-routing-demo.ts#L9) `bin/specific-routing-demo.ts:9`
 
 2. Check you are using CDK v2 : `npm install -g aws-cdk@next`
 
@@ -41,14 +41,14 @@ There is no SSH key installed on the host, access the bastion through [SSM](http
 (from your laptop) 
 
 ```zsh
-$ REGION=us-west-2 #adjust if you changed the region above 
+REGION=us-west-2 #adjust if you changed the region above 
 
-$ INSTANCE_ID=$(aws --region $REGION ec2 describe-instances                              \
-               --filter "Name=tag:Name,Values=BastionHost"                               \               
+BASTION_ID=$(aws --region $REGION ec2 describe-instances                                 \
+               --filter "Name=tag:Name,Values=BastionHost"                               \
                --query "Reservations[].Instances[?State.Name == 'running'].InstanceId[]" \
                --output text)
 
-$ aws --region $REGION ssm start-session --target $INSTANCE_ID
+aws --region $REGION ssm start-session --target $BASTION_ID
 ```
 
 ### Find the application Private IP Address
@@ -63,6 +63,62 @@ $ aws --region $REGION
     --output text  
 
 10.0.1.16
+```
+
+### To retrieve the subnet and ENI IDs 
+
+(from your laptop)
+
+```zsh
+VPC_ID=$(aws                                                    \
+    --region $REGION cloudformation describe-stacks             \
+    --stack-name SpecificRoutingDemoStack                       \
+    --query "Stacks[].Outputs[?OutputKey=='VPCID'].OutputValue" \
+    --output text)
+echo $VPC_ID
+
+APPLICATION_SUBNET_ID=$(aws                                                                                           \
+    --region $REGION ec2 describe-instances                                                                           \
+    --query "Reservations[].Instances[] | [?Tags[?Key=='Name' && Value=='application']].NetworkInterfaces[].SubnetId" \
+    --output text)
+echo $APPLICATION_SUBNET_ID
+
+APPLICATION_SUBNET_ROUTE_TABLE=$(aws                                                                                 \
+    --region $REGION  ec2 describe-route-tables                                                                      \
+    --query "RouteTables[?VpcId=='${VPC_ID}'] | [?Associations[?SubnetId=='${APPLICATION_SUBNET_ID}']].RouteTableId" \
+    --output text)
+echo $APPLICATION_SUBNET_ROUTE_TABLE
+
+APPLIANCE_ENI_ID=$(aws                                                                                                        \
+    --region $REGION ec2 describe-instances                                                                                   \
+    --query "Reservations[].Instances[] | [?Tags[?Key=='Name' && Value=='appliance']].NetworkInterfaces[].NetworkInterfaceId" \
+    --output text)
+echo $APPLIANCE_ENI_ID
+ 
+BASTION_SUBNET_ID=$(aws                                                                                               \
+    --region $REGION ec2 describe-instances                                                                           \
+    --query "Reservations[].Instances[] | [?Tags[?Key=='Name' && Value=='BastionHost']].NetworkInterfaces[].SubnetId" \
+    --output text)    
+echo $BASTION_SUBNET_ID
+
+BASTION_ENI_ID=$(aws                                                                                                          \
+    --region $REGION ec2 describe-instances                                                                                     \
+    --query "Reservations[].Instances[] | [?Tags[?Key=='Name' && Value=='BastionHost']].NetworkInterfaces[].NetworkInterfaceId" \
+    --output text)
+echo $BASTION_ENI_ID
+```
+
+### Connect to the appliance 
+
+(from your laptop) 
+
+```zsh
+APPLIANCE_ID=$(aws --region $REGION ec2 describe-instances                               \
+               --filter "Name=tag:Name,Values=appliance"                                 \
+               --query "Reservations[].Instances[?State.Name == 'running'].InstanceId[]" \
+               --output text)
+
+aws --region $REGION ssm start-session --target $APPLIANCE_ID
 ```
 
 ### Test connectivity to the application
