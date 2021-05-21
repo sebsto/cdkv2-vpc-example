@@ -3,8 +3,15 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { SpecificRoutingDemoStack } from '../lib/specific-routing-demo-stack';
 
+//
+// CHANGE THIS to deploy in the Region you want
+//
+const REGION='us-west-2';
+
 const app = new cdk.App();
 new SpecificRoutingDemoStack(app, 'SpecificRoutingDemoStack', {
+  env: { region: REGION }
+  
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */
