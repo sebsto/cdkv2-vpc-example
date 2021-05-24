@@ -4,6 +4,10 @@ This is a sample project to create a demo infrastructure to support a AWS News b
 
 Blog Post URL is : TBD
 
+## Architecture dpeloyed 
+
+![architeture deployed](illustration/Slide1.png)
+
 ## How to install ?
 
 1. Check or adjust AWS region to deploy. Region [is defined here](https://github.com/sebsto/cdkv2-vpc-example/blob/main/bin/specific-routing-demo.ts#L9) `bin/specific-routing-demo.ts:9`
@@ -22,9 +26,11 @@ cdk bootstrap # the firts time only
 cdk deploy 
 ```
 
-## Delete the infrastructure
+## Costs of the infrastructure
 
-This infrastructure creates 3 `t3.nano` instances and one NAT Gateway. It will [cost you $45.46](https://calculator.aws/#/estimate?id=7e5c8894a195e9935be801c7955ebc6b34eff513) per month ($0.063 per hour), assuming you keep the same region and run the infrastructure 24/7 on-demand)
+This infrastructure creates 3 `t3.nano` instances and 1 NAT Gateway. It will [cost you $45.56](https://calculator.aws/#/estimate?id=a460f21b3c6a0e271aae860ce4482c02389747bd) per month ($0.063 per hour), assuming you keep the same region and run the infrastructure 24/7 on-demand)
+
+## Delete the infrastructure 
 
 When you have finished exploring this demo, you can delete the entire infrastructure with 
 
@@ -49,6 +55,25 @@ BASTION_ID=$(aws --region $REGION ec2 describe-instances                        
                --output text)
 
 aws --region $REGION ssm start-session --target $BASTION_ID
+```
+
+### Connect to the appliance host
+
+Connecting to appliance host is only required for debugging ot analysis.
+
+There is no SSH key installed on the host, access the appliance through [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) only.
+
+(from your laptop) 
+
+```zsh
+REGION=us-west-2 #adjust if you changed the region above 
+
+APPLIANCE_ID=$(aws --region $REGION ec2 describe-instances                                 \
+               --filter "Name=tag:Name,Values=appliance"                               \
+               --query "Reservations[].Instances[?State.Name == 'running'].InstanceId[]" \
+               --output text)
+
+aws --region $REGION ssm start-session --target $APPLIANCE_ID
 ```
 
 ### Find the application Private IP Address
