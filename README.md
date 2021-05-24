@@ -1,10 +1,10 @@
 # Welcome to a CDK Network sample
 
-This is a sample project to create a demo infrastructure to support a AWS News blog post.
+This is a sample project to create a demo infrastructure to support an AWS News blog post.
 
 Blog Post URL is : TBD
 
-## Architecture dpeloyed 
+## Architecture deployed 
 
 ![architeture deployed](illustration/Slide1.png)
 
@@ -22,7 +22,7 @@ After a git clone, follow these steps
 cd cdkv2-vpc-example
 
 npm install 
-cdk bootstrap # the firts time only
+cdk bootstrap # the first time only
 cdk deploy 
 ```
 
@@ -40,6 +40,20 @@ cdk destroy
 
 ## AWS CLI Commands for the demo 
 
+### Find the application Private IP Address
+
+(from your laptop) 
+
+```zsh
+aws --region $REGION                                                              \
+    ec2 describe-instances                                                        \
+    --filter "Name=tag:Name,Values=application"                                   \
+    --query "Reservations[].Instances[?State.Name == 'running'].PrivateIpAddress" \
+    --output text  
+
+10.0.1.16 #ip address will differ for your setup 
+```
+
 ### Connect to the bastion host
 
 There is no SSH key installed on the host, access the bastion through [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) only.
@@ -47,7 +61,7 @@ There is no SSH key installed on the host, access the bastion through [SSM](http
 (from your laptop) 
 
 ```zsh
-REGION=us-west-2 #adjust if you changed the region above 
+REGION=us-west-2 # adjust if you changed the region above 
 
 BASTION_ID=$(aws --region $REGION ec2 describe-instances                                 \
                --filter "Name=tag:Name,Values=BastionHost"                               \
@@ -57,37 +71,42 @@ BASTION_ID=$(aws --region $REGION ec2 describe-instances                        
 aws --region $REGION ssm start-session --target $BASTION_ID
 ```
 
+### Verifiy connectivity with application 
+
+(once connected to the bastion host)
+
+```zsh
+curl -I <private ip address of the application host> #replace with the IP address obtained above
+
+# when everything goes well, it should reply this 
+HTTP/1.1 200 OK
+Server: nginx/1.18.0
+Date: Mon, 24 May 2021 10:00:22 GMT
+Content-Type: text/html
+Content-Length: 12338
+Last-Modified: Mon, 24 May 2021 09:36:49 GMT
+Connection: keep-alive
+ETag: "60ab73b1-3032"
+Accept-Ranges: bytes
+```
+
 ### Connect to the appliance host
 
-Connecting to appliance host is only required for debugging ot analysis.
+Connecting to appliance host is only required for debugging or analysis.
 
 There is no SSH key installed on the host, access the appliance through [SSM](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html) only.
 
 (from your laptop) 
 
 ```zsh
-REGION=us-west-2 #adjust if you changed the region above 
+REGION=us-west-2 # adjust if you changed the region above 
 
-APPLIANCE_ID=$(aws --region $REGION ec2 describe-instances                                 \
-               --filter "Name=tag:Name,Values=appliance"                               \
+APPLIANCE_ID=$(aws --region $REGION ec2 describe-instances                               \
+               --filter "Name=tag:Name,Values=appliance"                                 \
                --query "Reservations[].Instances[?State.Name == 'running'].InstanceId[]" \
                --output text)
 
 aws --region $REGION ssm start-session --target $APPLIANCE_ID
-```
-
-### Find the application Private IP Address
-
-(from your laptop) 
-
-```zsh
-$ aws --region $REGION 
-    ec2 describe-instances                                                        \
-    --filter "Name=tag:Name,Values=application"                                   \
-    --query "Reservations[].Instances[?State.Name == 'running'].PrivateIpAddress" \
-    --output text  
-
-10.0.1.16
 ```
 
 ### To retrieve the subnet and ENI IDs 
@@ -133,38 +152,7 @@ BASTION_ENI_ID=$(aws                                                            
 echo $BASTION_ENI_ID
 ```
 
-### Connect to the appliance 
-
-(from your laptop) 
-
-```zsh
-APPLIANCE_ID=$(aws --region $REGION ec2 describe-instances                               \
-               --filter "Name=tag:Name,Values=appliance"                                 \
-               --query "Reservations[].Instances[?State.Name == 'running'].InstanceId[]" \
-               --output text)
-
-aws --region $REGION ssm start-session --target $APPLIANCE_ID
-```
-
-### Test connectivity to the application
-
-(from the bastion host) 
-
-```zsh
-$ curl -I <application private ip address>
-
-HTTP/1.1 200 OK
-Server: nginx/1.18.0
-Date: Fri, 21 May 2021 08:02:13 GMT
-Content-Type: text/html
-Content-Length: 12338
-Last-Modified: Thu, 20 May 2021 19:47:39 GMT
-Connection: keep-alive
-ETag: "60a6bcdb-3032"
-Accept-Ranges: bytes
-```
-
-## Useful commands
+## Useful CDK commands
 
  * `npm run build`   compile typescript to js
  * `npm run watch`   watch for changes and compile
