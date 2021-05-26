@@ -45,7 +45,8 @@ export class SpecificRoutingDemoStack extends Stack {
       allowAllOutbound: true   // Can be set to false
     });
     applicationSecurityGroup.addIngressRule(
-      bastionHost.instance.connections.securityGroups[0],
+      //bastionHost.instance.connections.securityGroups[0],
+      ec2.Peer.anyIpv4(),
       ec2.Port.tcp(80),
       'Allows HTTP connection from bastion security group');
 
@@ -111,7 +112,8 @@ export class SpecificRoutingDemoStack extends Stack {
       vpcSubnets: { subnetGroupName: 'appliance'},
       instanceName: 'appliance',
       userData: enableRoutingUserdata,
-      sourceDestCheck: false
+      sourceDestCheck: false,
+      securityGroup: applicationSecurityGroup
     });
 
     //
