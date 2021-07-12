@@ -45,6 +45,8 @@ cdk destroy
 (from your laptop) 
 
 ```zsh
+REGION=us-west-2 # adjust if you changed the region above 
+
 aws --region $REGION                                                              \
     ec2 describe-instances                                                        \
     --filter "Name=tag:Name,Values=application"                                   \
@@ -150,7 +152,17 @@ BASTION_ENI_ID=$(aws                                                            
     --query "Reservations[].Instances[] | [?Tags[?Key=='Name' && Value=='BastionHost']].NetworkInterfaces[].NetworkInterfaceId" \
     --output text)
 echo $BASTION_ENI_ID
+
+BASTION_SUBNET_ROUTE_TABLE=$(aws                                                               \
+    --region $REGION  ec2 describe-route-tables                                                                      \
+    --query "RouteTables[?VpcId=='${VPC_ID}'] | [?Associations[?SubnetId=='${BASTION_SUBNET_ID}']].RouteTableId" \
+    --output text)
+echo $BASTION_SUBNET_ROUTE_TABLE
 ```
+
+## Configure routing through the appliance 
+
+TBD 
 
 ## Useful CDK commands
 
